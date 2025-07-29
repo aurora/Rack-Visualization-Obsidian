@@ -5,7 +5,8 @@
   "minAppVersion": "0.15.0",
   "description": "Generate server rack diagrams from RackML XML or text markup in code blocks",
   "author": "Harald Lapp",
-  "authorUrl": "https://github.com/haraldlapp",
+  "authorUrl": "https://github.com/aurora",
   "fundingUrl": "",
-  "isDesktopOnly": false
+  "isDesktopOnly": false,
+  "main": "main.js"
 }
