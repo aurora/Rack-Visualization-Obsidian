@@ -1,0 +1,11 @@
+{
+  "id": "rack-visualization",
+  "name": "Rack Visualization",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Generate server rack diagrams from RackML XML or text markup in code blocks",
+  "author": "Harald Lapp",
+  "authorUrl": "https://github.com/haraldlapp",
+  "fundingUrl": "",
+  "isDesktopOnly": false
+}
