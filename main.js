@@ -373,10 +373,10 @@ var _SvgGenerator = class {
     rackSvg.push(`<rect x="0" y="${_SvgGenerator.DEFAULT_SVG_MARGIN}" width="${_SvgGenerator.DEFAULT_RACK_WIDTH_POINTS}" height="${rack.height * _SvgGenerator.DEFAULT_RACK_UNIT_POINTS}" fill="url(#pattern-empty)" stroke="black"/>`);
     const rackBottomY = rack.height * _SvgGenerator.DEFAULT_RACK_UNIT_POINTS + _SvgGenerator.DEFAULT_SVG_MARGIN;
     let currentPosition = 0;
-    const devices = [...rack.devices].reverse();
+    const devices = rack.devices;
     for (const device of devices) {
       const at = device.position !== void 0 ? device.position - 1 : currentPosition;
-      const deviceY = rackBottomY - (at + device.height) * _SvgGenerator.DEFAULT_RACK_UNIT_POINTS;
+      const deviceY = _SvgGenerator.DEFAULT_SVG_MARGIN + at * _SvgGenerator.DEFAULT_RACK_UNIT_POINTS;
       rackSvg.push(`<g transform="translate(0, ${deviceY})">`);
       rackSvg.push(this.generateDevice(device, baseHref));
       rackSvg.push("</g>");

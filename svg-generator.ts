@@ -91,12 +91,12 @@ export class SvgGenerator {
         const rackBottomY = (rack.height * SvgGenerator.DEFAULT_RACK_UNIT_POINTS) + SvgGenerator.DEFAULT_SVG_MARGIN;
         let currentPosition = 0;
 
-        // Process devices from bottom to top (reverse order)
-        const devices = [...rack.devices].reverse();
+        // Process devices from top to bottom (natural order)
+        const devices = rack.devices;
 
         for (const device of devices) {
             const at = device.position !== undefined ? device.position - 1 : currentPosition;
-            const deviceY = rackBottomY - ((at + device.height) * SvgGenerator.DEFAULT_RACK_UNIT_POINTS);
+            const deviceY = SvgGenerator.DEFAULT_SVG_MARGIN + (at * SvgGenerator.DEFAULT_RACK_UNIT_POINTS);
 
             rackSvg.push(`<g transform="translate(0, ${deviceY})">`);
             rackSvg.push(this.generateDevice(device, baseHref));
