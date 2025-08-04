@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Generate server rack diagrams from RackML XML or text markup in code blocks",
   "main": "main.js",
-  "type": "module",
   "scripts": {
     "dev": "node esbuild.config.js",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.js production",

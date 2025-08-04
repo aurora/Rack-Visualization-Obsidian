@@ -11,7 +11,7 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = (process.argv[2] === 'production');
 
-const context = esbuild.context({
+esbuild.build({
 	banner: {
 		js: banner,
 	},
@@ -38,13 +38,5 @@ const context = esbuild.context({
 	sourcemap: prod ? false : 'inline',
 	treeShaking: true,
 	outfile: 'main.js',
-}).then(context => {
-	if (prod) {
-		context.rebuild().then(() => {
-			context.dispose();
-			process.exit(0);
-		});
-	} else {
-		context.watch();
-	}
+	watch: !prod,
 }).catch(() => process.exit(1));

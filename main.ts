@@ -2,6 +2,7 @@ import { Plugin, MarkdownPostProcessorContext } from 'obsidian';
 import { RackMLParser } from './rackml-parser';
 import { TextMarkupParser } from './text-markup-parser';
 import { SvgGenerator } from './svg-generator';
+import { RackSet } from './models';
 
 export default class RackVisualizationPlugin extends Plugin {
     async onload() {
@@ -72,7 +73,7 @@ export default class RackVisualizationPlugin extends Plugin {
         }
     }
 
-    private convertObsidianLinks(rackSet: any, ctx: MarkdownPostProcessorContext) {
+    private convertObsidianLinks(rackSet: RackSet, ctx: MarkdownPostProcessorContext) {
         // Convert Obsidian-style links [[Note Name]] to proper links
         for (const rack of rackSet.racks) {
             for (const device of rack.devices) {
