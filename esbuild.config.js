@@ -11,32 +11,64 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = (process.argv[2] === 'production');
 
-esbuild.build({
-	banner: {
-		js: banner,
-	},
-	entryPoints: ['main.ts'],
-	bundle: true,
-	external: [
-		'obsidian',
-		'electron',
-		'@codemirror/autocomplete',
-		'@codemirror/collab',
-		'@codemirror/commands',
-		'@codemirror/language',
-		'@codemirror/lint',
-		'@codemirror/search',
-		'@codemirror/state',
-		'@codemirror/view',
-		'@lezer/common',
-		'@lezer/highlight',
-		'@lezer/lr',
-		...builtins],
-	format: 'cjs',
-	target: 'es2018',
-	logLevel: "info",
-	sourcemap: prod ? false : 'inline',
-	treeShaking: true,
-	outfile: 'main.js',
-	watch: !prod,
-}).catch(() => process.exit(1));
+if (prod) {
+	esbuild.build({
+		banner: {
+			js: banner,
+		},
+		entryPoints: ['main.ts'],
+		bundle: true,
+		external: [
+			'obsidian',
+			'electron',
+			'@codemirror/autocomplete',
+			'@codemirror/collab',
+			'@codemirror/commands',
+			'@codemirror/language',
+			'@codemirror/lint',
+			'@codemirror/search',
+			'@codemirror/state',
+			'@codemirror/view',
+			'@lezer/common',
+			'@lezer/highlight',
+			'@lezer/lr',
+			...builtins],
+		format: 'cjs',
+		target: 'es2018',
+		logLevel: "info",
+		sourcemap: false,
+		treeShaking: true,
+		outfile: 'main.js',
+	}).catch(() => process.exit(1));
+} else {
+	esbuild.context({
+		banner: {
+			js: banner,
+		},
+		entryPoints: ['main.ts'],
+		bundle: true,
+		external: [
+			'obsidian',
+			'electron',
+			'@codemirror/autocomplete',
+			'@codemirror/collab',
+			'@codemirror/commands',
+			'@codemirror/language',
+			'@codemirror/lint',
+			'@codemirror/search',
+			'@codemirror/state',
+			'@codemirror/view',
+			'@lezer/common',
+			'@lezer/highlight',
+			'@lezer/lr',
+			...builtins],
+		format: 'cjs',
+		target: 'es2018',
+		logLevel: "info",
+		sourcemap: 'inline',
+		treeShaking: true,
+		outfile: 'main.js',
+	}).then(context => {
+		context.watch();
+	}).catch(() => process.exit(1));
+}
