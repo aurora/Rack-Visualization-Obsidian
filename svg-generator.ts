@@ -127,13 +127,6 @@ export class SvgGenerator {
             const labelY = (deviceHeight / 2.0) + 2;
             let labelText = `<text x="${labelX}" y="${labelY}" text-anchor="start" dominant-baseline="middle" font-family="sans-serif" font-size="13">${this.xmlEscape(device.name)}</text>`;
 
-            // If href is present, make label a link
-            if (device.href) {
-                const href = baseHref && this.isAbsoluteUrl(baseHref)
-                    ? new URL(device.href, baseHref).toString()
-                    : device.href;
-                labelText = `<a xlink:href="${this.xmlEscape(href)}">${labelText}</a>`;
-            }
             // Add label outside the rack
             deviceSvg.push(labelText);
         }

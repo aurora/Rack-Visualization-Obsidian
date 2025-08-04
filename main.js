@@ -395,10 +395,6 @@ var _SvgGenerator = class {
       const labelX = _SvgGenerator.DEFAULT_RACK_WIDTH_POINTS + 16;
       const labelY = deviceHeight / 2 + 2;
       let labelText = `<text x="${labelX}" y="${labelY}" text-anchor="start" dominant-baseline="middle" font-family="sans-serif" font-size="13">${this.xmlEscape(device.name)}</text>`;
-      if (device.href) {
-        const href = baseHref && this.isAbsoluteUrl(baseHref) ? new URL(device.href, baseHref).toString() : device.href;
-        labelText = `<a xlink:href="${this.xmlEscape(href)}">${labelText}</a>`;
-      }
       deviceSvg.push(labelText);
     }
     this.addDeviceSymbol(deviceSvg, device);
