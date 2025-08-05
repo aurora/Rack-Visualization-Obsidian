@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Höhen-Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-case {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-case h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .description {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        svg {
+            border: 1px solid #ddd;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>SVG Höhen-Test für Rack-Visualisierung</h1>
+    <p>Diese Seite testet verschiedene Szenarien, die zu abgeschnittenen SVGs führen könnten.</p>
+
+    <div class="test-case">
+        <h3>Test 1: Normales Rack (sollte funktionieren)</h3>
+        <div class="description">Rack mit 42U Höhe, Geräte in normalen Positionen</div>
+        <div id="test1"></div>
+    </div>
+
+    <div class="test-case">
+        <h3>Test 2: Gerät über Rack-Höhe hinaus</h3>
+        <div class="description">Rack mit 20U, aber Gerät an Position 25 (sollte vorher abgeschnitten werden)</div>
+        <div id="test2"></div>
+    </div>
+
+    <div class="test-case">
+        <h3>Test 3: Mehrere Geräte mit expliziten Positionen</h3>
+        <div class="description">Verschiedene Geräte mit expliziten Positionen, die über die nominelle Höhe hinausgehen</div>
+        <div id="test3"></div>
+    </div>
+
+    <script type="module">
+        // Simuliere die SvgGenerator-Klasse für Tests
+        class TestSvgGenerator {
+            static DEFAULT_RACK_HEIGHT_UNITS = 42;
+            static DEFAULT_RACK_SPACING_POINTS = 25;
+            static DEFAULT_RACK_UNIT_POINTS = 25;
+            static DEFAULT_RACK_WIDTH_POINTS = 300;
+            static DEFAULT_SVG_MARGIN = 25;
+
+            generateSvg(rackSet) {
+                // Neue verbesserte Höhenberechnung
+                const maxRackHeight = rackSet.racks.length > 0
+                    ? Math.max(...rackSet.racks.map(r => this.calculateActualRackHeight(r)))
+                    : TestSvgGenerator.DEFAULT_RACK_HEIGHT_UNITS;
+
+                const rackCount = rackSet.racks.length;
+                const svgHeight = (2 * TestSvgGenerator.DEFAULT_SVG_MARGIN) + (TestSvgGenerator.DEFAULT_RACK_UNIT_POINTS * maxRackHeight);
+                const svgWidth = (2 * TestSvgGenerator.DEFAULT_SVG_MARGIN) + (rackCount * TestSvgGenerator.DEFAULT_RACK_WIDTH_POINTS) + 200;
+
+                const svg = [];
+                svg.push(`<svg baseProfile="full" height="${svgHeight}" version="1.1" width="${svgWidth}" xmlns="http://www.w3.org/2000/svg">`);
+                
+                // Einfaches Rack-Rechteck für Visualisierung
+                let xOffset = TestSvgGenerator.DEFAULT_SVG_MARGIN;
+                for (const rack of rackSet.racks) {
+                    const actualHeight = this.calculateActualRackHeight(rack);
+                    
+                    // Rack-Hintergrund
+                    svg.push(`<rect x="${xOffset}" y="${TestSvgGenerator.DEFAULT_SVG_MARGIN}" width="${TestSvgGenerator.DEFAULT_RACK_WIDTH_POINTS}" height="${actualHeight * TestSvgGenerator.DEFAULT_RACK_UNIT_POINTS}" fill="#f0f0f0" stroke="black"/>`);
+                    
+                    // Rack-Name
+                    if (rack.name) {
+                        svg.push(`<text x="${xOffset + TestSvgGenerator.DEFAULT_RACK_WIDTH_POINTS / 2}" y="15" text-anchor="middle" font-family="sans-serif">${rack.name}</text>`);
+                    }
+                    
+                    // Geräte
+                    let currentPosition = 0;
+                    for (const device of rack.devices) {
+                        const at = device.position !== undefined ? device.position - 1 : currentPosition;
+                        const deviceY = TestSvgGenerator.DEFAULT_SVG_MARGIN + (at * TestSvgGenerator.DEFAULT_RACK_UNIT_POINTS);
+                        const deviceHeight = device.height * TestSvgGenerator.DEFAULT_RACK_UNIT_POINTS;
+                        
+                        svg.push(`<rect x="${xOffset + 5}" y="${deviceY}" width="${TestSvgGenerator.DEFAULT_RACK_WIDTH_POINTS - 10}" height="${deviceHeight}" fill="#4CAF50" stroke="black"/>`);
+                        svg.push(`<text x="${xOffset + TestSvgGenerator.DEFAULT_RACK_WIDTH_POINTS / 2}" y="${deviceY + deviceHeight / 2 + 5}" text-anchor="middle" font-family="sans-serif" font-size="12">${device.name || device.type}</text>`);
+                        
+                        currentPosition = at + device.height;
+                    }
+                    
+                    // Höhen-Skala
+                    for (let u = actualHeight; u >= 1; u--) {
+                        const y = TestSvgGenerator.DEFAULT_SVG_MARGIN + (actualHeight - u) * TestSvgGenerator.DEFAULT_RACK_UNIT_POINTS;
+                        svg.push(`<text x="${xOffset - 10}" y="${y + TestSvgGenerator.DEFAULT_RACK_UNIT_POINTS / 2 + 3}" text-anchor="end" font-family="sans-serif" font-size="10">${u}</text>`);
+                        svg.push(`<line x1="${xOffset - 5}" y1="${y}" x2="${xOffset}" y2="${y}" stroke="black"/>`);
+                    }
+                    
+                    xOffset += TestSvgGenerator.DEFAULT_RACK_WIDTH_POINTS + TestSvgGenerator.DEFAULT_RACK_SPACING_POINTS;
+                }
+                
+                svg.push('</svg>');
+                return svg.join('\n');
+            }
+
+            calculateActualRackHeight(rack) {
+                let maxHeight = rack.height;
+                let currentPosition = 0;
+                
+                for (const device of rack.devices) {
+                    const at = device.position !== undefined ? device.position - 1 : currentPosition;
+                    const deviceEndPosition = at + device.height;
+                    
+                    if (deviceEndPosition > maxHeight) {
+                        maxHeight = deviceEndPosition;
+                    }
+                    
+                    currentPosition = at + device.height;
+                }
+                
+                return maxHeight;
+            }
+        }
+
+        const generator = new TestSvgGenerator();
+
+        // Test 1: Normales Rack
+        const test1Data = {
+            racks: [{
+                name: "Rack A",
+                height: 42,
+                devices: [
+                    { type: "server", name: "Server 1", height: 2 },
+                    { type: "switch", name: "Switch 1", height: 1 },
+                    { type: "server", name: "Server 2", height: 4 }
+                ]
+            }]
+        };
+
+        // Test 2: Gerät über Rack-Höhe hinaus
+        const test2Data = {
+            racks: [{
+                name: "Rack B (20U nominal)",
+                height: 20,
+                devices: [
+                    { type: "server", name: "Server 1", height: 2, position: 1 },
+                    { type: "switch", name: "Switch 1", height: 1, position: 10 },
+                    { type: "server", name: "Server 2 (Position 25!)", height: 4, position: 25 }
+                ]
+            }]
+        };
+
+        // Test 3: Mehrere problematische Positionen
+        const test3Data = {
+            racks: [{
+                name: "Rack C (15U nominal)",
+                height: 15,
+                devices: [
+                    { type: "server", name: "Server 1", height: 1, position: 5 },
+                    { type: "switch", name: "Switch 1", height: 2, position: 18 },
+                    { type: "server", name: "Server 2", height: 3, position: 22 },
+                    { type: "ups", name: "UPS", height: 2, position: 30 }
+                ]
+            }]
+        };
+
+        document.getElementById('test1').innerHTML = generator.generateSvg(test1Data);
+        document.getElementById('test2').innerHTML = generator.generateSvg(test2Data);
+        document.getElementById('test3').innerHTML = generator.generateSvg(test3Data);
+
+        // Zeige berechnete Höhen in der Konsole
+        console.log('Test 1 - Berechnete Höhe:', generator.calculateActualRackHeight(test1Data.racks[0]));
+        console.log('Test 2 - Berechnete Höhe:', generator.calculateActualRackHeight(test2Data.racks[0]));
+        console.log('Test 3 - Berechnete Höhe:', generator.calculateActualRackHeight(test3Data.racks[0]));
+    </script>
+</body>
+</html>

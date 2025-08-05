@@ -320,7 +320,7 @@ var DeviceSymbols = class {
 // svg-generator.ts
 var _SvgGenerator = class {
   generateSvg(rackSet) {
-    const maxRackHeight = rackSet.racks.length > 0 ? Math.max(...rackSet.racks.map((r) => r.height)) : _SvgGenerator.DEFAULT_RACK_HEIGHT_UNITS;
+    const maxRackHeight = rackSet.racks.length > 0 ? Math.max(...rackSet.racks.map((r) => this.calculateActualRackHeight(r))) : _SvgGenerator.DEFAULT_RACK_HEIGHT_UNITS;
     const rackCount = rackSet.racks.length;
     const svgHeight = 2 * _SvgGenerator.DEFAULT_SVG_MARGIN + _SvgGenerator.DEFAULT_RACK_UNIT_POINTS * maxRackHeight;
     let maxLabelLen = 0;
@@ -331,10 +331,11 @@ var _SvgGenerator = class {
         }
       }
     }
-    const labelWidth = maxLabelLen * 8 + 32;
+    const effectiveLabelLen = Math.min(maxLabelLen, 30);
+    const labelWidth = effectiveLabelLen * 8 + 32;
     const svgWidth = 2 * _SvgGenerator.DEFAULT_SVG_MARGIN + rackCount * _SvgGenerator.DEFAULT_RACK_WIDTH_POINTS + (rackCount - 1) * _SvgGenerator.DEFAULT_RACK_SPACING_POINTS + labelWidth;
     const svg = [];
-    svg.push(`<svg baseProfile="full" height="${svgHeight}" version="1.1" width="${svgWidth}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`);
+    svg.push(`<svg baseProfile="full" viewBox="0 0 ${svgWidth} ${svgHeight}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="max-width: 100%; height: auto;">`);
     svg.push(`<style>
             a text {
                 fill: #0066cc;
@@ -344,12 +345,21 @@ var _SvgGenerator = class {
                 fill: #004499;
                 filter: brightness(90%);
             }
+            /* Responsive text scaling */
+            text {
+                font-size: 13px;
+            }
+            @media (max-width: 768px) {
+                text {
+                    font-size: 11px;
+                }
+            }
         </style>`);
     svg.push(this.generateEmptyPattern());
     let xOffset = _SvgGenerator.DEFAULT_SVG_MARGIN;
     for (const rack of rackSet.racks) {
       svg.push(`<g transform="translate(${xOffset - 50}, 0)">`);
-      svg.push(this.generateRackScale(rack.height));
+      svg.push(this.generateRackScale(this.calculateActualRackHeight(rack)));
       svg.push("</g>");
       svg.push(`<g transform="translate(${xOffset}, 0)">`);
       svg.push(this.generateRack(rack, rackSet.base));
@@ -366,12 +376,13 @@ var _SvgGenerator = class {
   }
   generateRack(rack, baseHref) {
     const rackSvg = [];
+    const actualRackHeight = this.calculateActualRackHeight(rack);
     if (rack.name) {
       const nameY = _SvgGenerator.DEFAULT_SVG_MARGIN / 2 + 2;
       rackSvg.push(`<text x="${_SvgGenerator.DEFAULT_RACK_WIDTH_POINTS / 2}" y="${nameY}" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">${this.xmlEscape(rack.name)}</text>`);
     }
-    rackSvg.push(`<rect x="0" y="${_SvgGenerator.DEFAULT_SVG_MARGIN}" width="${_SvgGenerator.DEFAULT_RACK_WIDTH_POINTS}" height="${rack.height * _SvgGenerator.DEFAULT_RACK_UNIT_POINTS}" fill="url(#pattern-empty)" stroke="black"/>`);
-    const rackBottomY = rack.height * _SvgGenerator.DEFAULT_RACK_UNIT_POINTS + _SvgGenerator.DEFAULT_SVG_MARGIN;
+    rackSvg.push(`<rect x="0" y="${_SvgGenerator.DEFAULT_SVG_MARGIN}" width="${_SvgGenerator.DEFAULT_RACK_WIDTH_POINTS}" height="${actualRackHeight * _SvgGenerator.DEFAULT_RACK_UNIT_POINTS}" fill="url(#pattern-empty)" stroke="black"/>`);
+    const rackBottomY = actualRackHeight * _SvgGenerator.DEFAULT_RACK_UNIT_POINTS + _SvgGenerator.DEFAULT_SVG_MARGIN;
     let currentPosition = 0;
     const devices = rack.devices;
     for (const device of devices) {
@@ -394,7 +405,8 @@ var _SvgGenerator = class {
     if (device.name) {
       const labelX = _SvgGenerator.DEFAULT_RACK_WIDTH_POINTS + 16;
       const labelY = deviceHeight / 2 + 2;
-      let labelText = `<text x="${labelX}" y="${labelY}" text-anchor="start" dominant-baseline="middle" font-family="sans-serif" font-size="13">${this.xmlEscape(device.name)}</text>`;
+      const displayName = device.name.length > 30 ? device.name.substring(0, 27) + "..." : device.name;
+      let labelText = `<text x="${labelX}" y="${labelY}" text-anchor="start" dominant-baseline="middle" font-family="sans-serif" font-size="13" title="${this.xmlEscape(device.name)}">${this.xmlEscape(displayName)}</text>`;
       deviceSvg.push(labelText);
     }
     this.addDeviceSymbol(deviceSvg, device);
@@ -475,6 +487,19 @@ var _SvgGenerator = class {
     } catch (e) {
       return false;
     }
+  }
+  calculateActualRackHeight(rack) {
+    let maxHeight = rack.height;
+    let currentPosition = 0;
+    for (const device of rack.devices) {
+      const at = device.position !== void 0 ? device.position - 1 : currentPosition;
+      const deviceEndPosition = at + device.height;
+      if (deviceEndPosition > maxHeight) {
+        maxHeight = deviceEndPosition;
+      }
+      currentPosition = at + device.height;
+    }
+    return maxHeight;
   }
 };
 var SvgGenerator = _SvgGenerator;

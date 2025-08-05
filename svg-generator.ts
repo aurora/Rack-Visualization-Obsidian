@@ -10,14 +10,15 @@ export class SvgGenerator {
     private static readonly DEFAULT_SVG_MARGIN = 25;
 
     public generateSvg(rackSet: RackSet): string {
+        // Calculate the actual maximum height needed based on device positions
         const maxRackHeight = rackSet.racks.length > 0
-            ? Math.max(...rackSet.racks.map(r => r.height))
+            ? Math.max(...rackSet.racks.map(r => this.calculateActualRackHeight(r)))
             : SvgGenerator.DEFAULT_RACK_HEIGHT_UNITS;
 
         const rackCount = rackSet.racks.length;
         const svgHeight = (2 * SvgGenerator.DEFAULT_SVG_MARGIN) + (SvgGenerator.DEFAULT_RACK_UNIT_POINTS * maxRackHeight);
 
-        // Calculate maximum label length (in characters)
+        // Calculate maximum label length (in characters) with reasonable limit
         let maxLabelLen = 0;
         for (const rack of rackSet.racks) {
             for (const device of rack.devices) {
@@ -26,14 +27,17 @@ export class SvgGenerator {
                 }
             }
         }
+        // Limit label width to prevent excessive SVG width (max 30 characters)
+        const effectiveLabelLen = Math.min(maxLabelLen, 30);
         // Estimate width: 8px per character + 32px buffer
-        const labelWidth = (maxLabelLen * 8) + 32;
+        const labelWidth = (effectiveLabelLen * 8) + 32;
 
         const svgWidth = (2 * SvgGenerator.DEFAULT_SVG_MARGIN) + (rackCount * SvgGenerator.DEFAULT_RACK_WIDTH_POINTS) +
                         ((rackCount - 1) * SvgGenerator.DEFAULT_RACK_SPACING_POINTS) + labelWidth;
 
         const svg: string[] = [];
-        svg.push(`<svg baseProfile="full" height="${svgHeight}" version="1.1" width="${svgWidth}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`);
+        // Use viewBox for responsive scaling - SVG will scale to fit container width
+        svg.push(`<svg baseProfile="full" viewBox="0 0 ${svgWidth} ${svgHeight}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="max-width: 100%; height: auto;">`);
         
         // Add CSS styles
         svg.push(`<style>
@@ -45,6 +49,15 @@ export class SvgGenerator {
                 fill: #004499;
                 filter: brightness(90%);
             }
+            /* Responsive text scaling */
+            text {
+                font-size: 13px;
+            }
+            @media (max-width: 768px) {
+                text {
+                    font-size: 11px;
+                }
+            }
         </style>`);
 
         // Add empty pattern
@@ -52,9 +65,9 @@ export class SvgGenerator {
 
         let xOffset = SvgGenerator.DEFAULT_SVG_MARGIN;
         for (const rack of rackSet.racks) {
-            // Scale to the left of the rack (with more distance)
+            // Scale to the left of the rack (with more distance) - use actual height
             svg.push(`<g transform="translate(${xOffset - 50}, 0)">`);
-            svg.push(this.generateRackScale(rack.height));
+            svg.push(this.generateRackScale(this.calculateActualRackHeight(rack)));
             svg.push('</g>');
 
             // Rack itself
@@ -77,6 +90,7 @@ export class SvgGenerator {
 
     private generateRack(rack: Rack, baseHref?: string): string {
         const rackSvg: string[] = [];
+        const actualRackHeight = this.calculateActualRackHeight(rack);
 
         // Add rack name if present
         if (rack.name) {
@@ -84,11 +98,11 @@ export class SvgGenerator {
             rackSvg.push(`<text x="${SvgGenerator.DEFAULT_RACK_WIDTH_POINTS / 2}" y="${nameY}" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">${this.xmlEscape(rack.name)}</text>`);
         }
 
-        // Add rack background
-        rackSvg.push(`<rect x="0" y="${SvgGenerator.DEFAULT_SVG_MARGIN}" width="${SvgGenerator.DEFAULT_RACK_WIDTH_POINTS}" height="${rack.height * SvgGenerator.DEFAULT_RACK_UNIT_POINTS}" fill="url(#pattern-empty)" stroke="black"/>`);
+        // Add rack background - use actual height to ensure all devices fit
+        rackSvg.push(`<rect x="0" y="${SvgGenerator.DEFAULT_SVG_MARGIN}" width="${SvgGenerator.DEFAULT_RACK_WIDTH_POINTS}" height="${actualRackHeight * SvgGenerator.DEFAULT_RACK_UNIT_POINTS}" fill="url(#pattern-empty)" stroke="black"/>`);
 
-        // Calculate device positions
-        const rackBottomY = (rack.height * SvgGenerator.DEFAULT_RACK_UNIT_POINTS) + SvgGenerator.DEFAULT_SVG_MARGIN;
+        // Calculate device positions - use actual height
+        const rackBottomY = (actualRackHeight * SvgGenerator.DEFAULT_RACK_UNIT_POINTS) + SvgGenerator.DEFAULT_SVG_MARGIN;
         let currentPosition = 0;
 
         // Process devices from top to bottom (natural order)
@@ -125,7 +139,13 @@ export class SvgGenerator {
         if (device.name) {
             const labelX = SvgGenerator.DEFAULT_RACK_WIDTH_POINTS + 16; // 16px distance to the right of the rack
             const labelY = (deviceHeight / 2.0) + 2;
-            let labelText = `<text x="${labelX}" y="${labelY}" text-anchor="start" dominant-baseline="middle" font-family="sans-serif" font-size="13">${this.xmlEscape(device.name)}</text>`;
+            
+            // Truncate very long labels and add ellipsis
+            const displayName = device.name.length > 30
+                ? device.name.substring(0, 27) + '...'
+                : device.name;
+            
+            let labelText = `<text x="${labelX}" y="${labelY}" text-anchor="start" dominant-baseline="middle" font-family="sans-serif" font-size="13" title="${this.xmlEscape(device.name)}">${this.xmlEscape(displayName)}</text>`;
 
             // Add label outside the rack
             deviceSvg.push(labelText);
@@ -249,5 +269,27 @@ export class SvgGenerator {
         } catch {
             return false;
         }
+    }
+
+    private calculateActualRackHeight(rack: Rack): number {
+        // Start with the nominal rack height
+        let maxHeight = rack.height;
+        
+        // Check all devices to find the actual maximum height needed
+        let currentPosition = 0;
+        
+        for (const device of rack.devices) {
+            const at = device.position !== undefined ? device.position - 1 : currentPosition;
+            const deviceEndPosition = at + device.height;
+            
+            // Update the maximum height if this device extends beyond it
+            if (deviceEndPosition > maxHeight) {
+                maxHeight = deviceEndPosition;
+            }
+            
+            currentPosition = at + device.height;
+        }
+        
+        return maxHeight;
     }
 }

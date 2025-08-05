@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive SVG Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .viewport-test {
+            border: 2px solid #007bff;
+            padding: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .narrow { width: 400px; }
+        .medium { width: 800px; }
+        .wide { width: 1200px; }
+        
+        h3 { margin-top: 0; color: #333; }
+        .description { color: #666; margin-bottom: 10px; }
+        
+        /* Simulate Obsidian's responsive behavior */
+        .obsidian-like {
+            max-width: 100%;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            background: #fafafa;
+        }
+    </style>
+</head>
+<body>
+    <h1>Responsive SVG Test für Rack-Visualisierung</h1>
+    <p>Diese Seite testet die responsive Skalierung des SVGs in verschiedenen Viewport-Größen.</p>
+
+    <div class="container">
+        <h3>Test 1: Schmaler Viewport (400px)</h3>
+        <div class="description">Simuliert einen schmalen Obsidian-Bereich</div>
+        <div class="viewport-test narrow obsidian-like" id="narrow-test"></div>
+    </div>
+
+    <div class="container">
+        <h3>Test 2: Mittlerer Viewport (800px)</h3>
+        <div class="description">Normale Desktop-Ansicht</div>
+        <div class="viewport-test medium obsidian-like" id="medium-test"></div>
+    </div>
+
+    <div class="container">
+        <h3>Test 3: Breiter Viewport (1200px)</h3>
+        <div class="description">Große Desktop-Ansicht</div>
+        <div class="viewport-test wide obsidian-like" id="wide-test"></div>
+    </div>
+
+    <div class="container">
+        <h3>Test 4: Sehr lange Labels</h3>
+        <div class="description">Test mit extrem langen Gerätenamen</div>
+        <div class="viewport-test medium obsidian-like" id="long-labels-test"></div>
+    </div>
+
+    <script type="module">
+        // Simuliere die verbesserte SvgGenerator-Klasse
+        class ResponsiveSvgGenerator {
+            static DEFAULT_RACK_HEIGHT_UNITS = 42;
+            static DEFAULT_RACK_SPACING_POINTS = 25;
+            static DEFAULT_RACK_UNIT_POINTS = 25;
+            static DEFAULT_RACK_WIDTH_POINTS = 300;
+            static DEFAULT_SVG_MARGIN = 25;
+
+            generateSvg(rackSet) {
+                const maxRackHeight = rackSet.racks.length > 0
+                    ? Math.max(...rackSet.racks.map(r => this.calculateActualRackHeight(r)))
+                    : ResponsiveSvgGenerator.DEFAULT_RACK_HEIGHT_UNITS;
+
+                // Calculate maximum label length with reasonable limit
+                let maxLabelLen = 0;
+                for (const rack of rackSet.racks) {
+                    for (const device of rack.devices) {
+                        if (device.name && device.name.length > maxLabelLen) {
+                            maxLabelLen = device.name.length;
+                        }
+                    }
+                }
+                // Limit label width to prevent excessive SVG width (max 30 characters)
+                const effectiveLabelLen = Math.min(maxLabelLen, 30);
+                const labelWidth = (effectiveLabelLen * 8) + 32;
+
+                const rackCount = rackSet.racks.length;
+                const svgHeight = (2 * ResponsiveSvgGenerator.DEFAULT_SVG_MARGIN) + (ResponsiveSvgGenerator.DEFAULT_RACK_UNIT_POINTS * maxRackHeight);
+                const svgWidth = (2 * ResponsiveSvgGenerator.DEFAULT_SVG_MARGIN) + (rackCount * ResponsiveSvgGenerator.DEFAULT_RACK_WIDTH_POINTS) +
+                                ((rackCount - 1) * ResponsiveSvgGenerator.DEFAULT_RACK_SPACING_POINTS) + labelWidth;
+
+                const svg = [];
+                // Use viewBox for responsive scaling
+                svg.push(`<svg baseProfile="full" viewBox="0 0 ${svgWidth} ${svgHeight}" version="1.1" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto;">`);
+                
+                svg.push(`<style>
+                    text { font-size: 13px; }
+                    @media (max-width: 768px) {
+                        text { font-size: 11px; }
+                    }
+                </style>`);
+                
+                let xOffset = ResponsiveSvgGenerator.DEFAULT_SVG_MARGIN;
+                for (const rack of rackSet.racks) {
+                    const actualHeight = this.calculateActualRackHeight(rack);
+                    
+                    // Rack-Hintergrund
+                    svg.push(`<rect x="${xOffset}" y="${ResponsiveSvgGenerator.DEFAULT_SVG_MARGIN}" width="${ResponsiveSvgGenerator.DEFAULT_RACK_WIDTH_POINTS}" height="${actualHeight * ResponsiveSvgGenerator.DEFAULT_RACK_UNIT_POINTS}" fill="#f0f0f0" stroke="black"/>`);
+                    
+                    // Rack-Name
+                    if (rack.name) {
+                        svg.push(`<text x="${xOffset + ResponsiveSvgGenerator.DEFAULT_RACK_WIDTH_POINTS / 2}" y="15" text-anchor="middle" font-family="sans-serif">${rack.name}</text>`);
+                    }
+                    
+                    // Geräte
+                    let currentPosition = 0;
+                    for (const device of rack.devices) {
+                        const at = device.position !== undefined ? device.position - 1 : currentPosition;
+                        const deviceY = ResponsiveSvgGenerator.DEFAULT_SVG_MARGIN + (at * ResponsiveSvgGenerator.DEFAULT_RACK_UNIT_POINTS);
+                        const deviceHeight = device.height * ResponsiveSvgGenerator.DEFAULT_RACK_UNIT_POINTS;
+                        
+                        svg.push(`<rect x="${xOffset + 5}" y="${deviceY}" width="${ResponsiveSvgGenerator.DEFAULT_RACK_WIDTH_POINTS - 10}" height="${deviceHeight}" fill="#4CAF50" stroke="black"/>`);
+                        svg.push(`<text x="${xOffset + ResponsiveSvgGenerator.DEFAULT_RACK_WIDTH_POINTS / 2}" y="${deviceY + deviceHeight / 2 + 5}" text-anchor="middle" font-family="sans-serif">${device.type}</text>`);
+                        
+                        // Label mit Kürzung für lange Namen
+                        if (device.name) {
+                            const labelX = xOffset + ResponsiveSvgGenerator.DEFAULT_RACK_WIDTH_POINTS + 16;
+                            const labelY = deviceY + deviceHeight / 2 + 5;
+                            const displayName = device.name.length > 30 
+                                ? device.name.substring(0, 27) + '...' 
+                                : device.name;
+                            
+                            svg.push(`<text x="${labelX}" y="${labelY}" text-anchor="start" font-family="sans-serif" title="${device.name}">${displayName}</text>`);
+                        }
+                        
+                        currentPosition = at + device.height;
+                    }
+                    
+                    // Höhen-Skala
+                    for (let u = actualHeight; u >= 1; u--) {
+                        const y = ResponsiveSvgGenerator.DEFAULT_SVG_MARGIN + (actualHeight - u) * ResponsiveSvgGenerator.DEFAULT_RACK_UNIT_POINTS;
+                        svg.push(`<text x="${xOffset - 10}" y="${y + ResponsiveSvgGenerator.DEFAULT_RACK_UNIT_POINTS / 2 + 3}" text-anchor="end" font-family="sans-serif" font-size="10">${u}</text>`);
+                        svg.push(`<line x1="${xOffset - 5}" y1="${y}" x2="${xOffset}" y2="${y}" stroke="black"/>`);
+                    }
+                    
+                    xOffset += ResponsiveSvgGenerator.DEFAULT_RACK_WIDTH_POINTS + ResponsiveSvgGenerator.DEFAULT_RACK_SPACING_POINTS;
+                }
+                
+                svg.push('</svg>');
+                return svg.join('\n');
+            }
+
+            calculateActualRackHeight(rack) {
+                let maxHeight = rack.height;
+                let currentPosition = 0;
+                
+                for (const device of rack.devices) {
+                    const at = device.position !== undefined ? device.position - 1 : currentPosition;
+                    const deviceEndPosition = at + device.height;
+                    
+                    if (deviceEndPosition > maxHeight) {
+                        maxHeight = deviceEndPosition;
+                    }
+                    
+                    currentPosition = at + device.height;
+                }
+                
+                return maxHeight;
+            }
+        }
+
+        const generator = new ResponsiveSvgGenerator();
+
+        // Test-Daten
+        const normalData = {
+            racks: [{
+                name: "Rack A",
+                height: 20,
+                devices: [
+                    { type: "server", name: "Web Server", height: 2 },
+                    { type: "switch", name: "Core Switch", height: 1 },
+                    { type: "server", name: "Database Server", height: 4 }
+                ]
+            }]
+        };
+
+        const longLabelsData = {
+            racks: [{
+                name: "Rack B",
+                height: 15,
+                devices: [
+                    { type: "server", name: "Very Long Server Name That Should Be Truncated", height: 2 },
+                    { type: "switch", name: "Extremely Long Network Switch Name For Testing Purposes", height: 1 },
+                    { type: "server", name: "Another Super Long Database Server Name", height: 3 }
+                ]
+            }]
+        };
+
+        // Generiere SVGs für alle Tests
+        document.getElementById('narrow-test').innerHTML = generator.generateSvg(normalData);
+        document.getElementById('medium-test').innerHTML = generator.generateSvg(normalData);
+        document.getElementById('wide-test').innerHTML = generator.generateSvg(normalData);
+        document.getElementById('long-labels-test').innerHTML = generator.generateSvg(longLabelsData);
+
+        console.log('Responsive SVG Tests geladen');
+    </script>
+</body>
+</html>
