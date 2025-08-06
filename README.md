@@ -1,5 +1,8 @@
 # Obsidian Rack Visualization Plugin
 
+![AI Generated](https://img.shields.io/badge/AI%20Generated-Yes-blue)
+> Model: Claude Sonnet-4 (2025-05-14) via Roo
+
 Ein Obsidian Plugin zur Generierung von Server-Rack-Diagrammen aus RackML XML oder Text-Markup in Code-Blöcken.
 
 ## Features
